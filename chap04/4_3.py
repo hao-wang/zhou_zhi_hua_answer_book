@@ -1,3 +1,8 @@
+"""
+编程实现基于信息熵进行划分选择的决策树算法。为西瓜数据集3.0生成决策树。
+
+Author: Hao Wang
+"""
 import numpy as np
 import os
 import pandas as pd

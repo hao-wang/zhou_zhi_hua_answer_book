@@ -1,8 +1,9 @@
 .classpath
 *.ipynb
 .ipynb_checkpoints/
-.settings/
 .project
+.settings/
+*.swp
 target/
 release/
 .idea/
