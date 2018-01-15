@@ -13,27 +13,8 @@ import os
 import pandas as pd
 from sklearn.cross_validation import train_test_split
 
-def get_discretized_values(lst):
-    """
-    Discretize continuous parameters by choosing splits.
-
-    Input:
-        lst: [value_of_continuous_column]
-
-    Return:
-        splits: [value_of_splits]
-    """
-    try:
-        lst = [float(ele) for ele in lst]
-    except Exception as e:
-        print(e)
-        return ['-']
-    #assert(all([float==type(ele) for ele in lst]))
-
-    lst = list(set(lst))
-    sort = sorted(lst)
-    return [(sort[i]+sort[i+1])/2 for i in range((len(sort)-1))]
-
+sys.path.append('../utils')
+from data_preprocess import get_discretized_values
 
 def get_gini(df, y_col = '好瓜'):
     """
@@ -283,6 +264,8 @@ def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
 
 def get_decision_from_tree(data, tree):
     """
+    Get labels for test dataset using the built tree.
+
     Input: 
         data: pd.Series
         tree: dict (decision tree)
