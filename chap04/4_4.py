@@ -281,6 +281,25 @@ def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
         return my_tree
 
 
+def get_decision_from_tree(data, tree):
+    """
+    Input: 
+        data: pd.Series
+        tree: dict (decision tree)
+    Return:
+        decision: String 
+    """
+
+    if type(tree).__name__ == 'dict':
+        k = list(tree.keys())[0]
+        data_value = data[k]
+        #print(k, data_value)
+        return get_decision_from_tree(data, tree[k].get(data_value, 'default'))
+
+    else:
+        return tree
+
+
 if __name__ == '__main__':
     melon_file = os.path.abspath('../data/xigua_2.0.csv')
     water_melon = pd.read_csv(melon_file, index_col='编号')
@@ -288,7 +307,6 @@ if __name__ == '__main__':
     train, validate = train_test_split(water_melon, train_size=0.6,
             random_state=1)
     print(len(train), len(validate))
-    input()
 
     # Unify the format of discrete/continuous columns to be (name, split_value).
     try:
@@ -313,6 +331,14 @@ if __name__ == '__main__':
 
     print('no_prune: ', no_prune_tree)
     print('pre_prune: ', pre_prune_tree)
+
+    print(type(validate))
+    for idx, s in validate.iterrows():
+        print(s)
+        decision_1 = get_decision_from_tree(s, no_prune_tree)
+        decision_2 = get_decision_from_tree(s, pre_prune_tree)
+        print(decision_1, decision_2)
+        print("="*50)
 
     #print("pre_prune="*50)
     #tmp_cols = all_cols.copy()
