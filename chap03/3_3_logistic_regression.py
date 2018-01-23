@@ -26,6 +26,7 @@ def logit(x, thresh = 0.5):
 def loss_cross_entropy(X, y, w):
     """
     Cross entropy as loss. 
+    http://www.cs.rpi.edu/~magdon/courses/LFD-Slides/SlidesLect09.pdf
 
     Input:
         X: input data, np.array([M, N])
