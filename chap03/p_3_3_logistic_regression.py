@@ -56,14 +56,32 @@ def loss_grad_wrt_w(X, y, w):
     return loss_grad/N
 
 
-def find_best_model(X, y, learn_rate, time_steps):
-    const_col = X.sum(1)[...,None]
-    X = np.append(X, const_col, 1)
-    w = np.ones(X.shape[1])
+def find_best_model(X, y, learn_rate, time_steps, verbose=False):
+    """
+    Input:
+        X: parameter array; np.array([n, m])
+        y: True 1, False -1; np.array(n)
+        learn_rate: float
+        time_steps: int
+        verbose: 
 
-    for _ in range(time_steps): 
+    Return:
+        Best-fit w; np.array(m+1), with the extra element being the bias.
+    """
+    const_col = X.sum(1)[...,None] 
+    X = np.append(X, const_col, 1)
+    X[:, -1] = 1
+    w = np.ones(X.shape[1])
+    if verbose:
+        print("Input data for logistic regression training: ")
+        print(X)
+        print(w)
+
+    for idx in range(time_steps): 
         w = w - loss_grad_wrt_w(X, y, w)*learn_rate
-        #print(w)
+        if verbose:
+            if idx % 100 == 0:
+                print(idx, w)
 
     return w
 

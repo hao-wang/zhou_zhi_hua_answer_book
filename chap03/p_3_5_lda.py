@@ -83,12 +83,10 @@ if __name__ == '__main__':
     # Use Logistic regression to find the threshold.    
     proj_good = np.dot(good_melon, proj_vector)
     proj_bad = np.dot(bad_melon, proj_vector)
-    print('good: ', proj_good)
-    print('bad: ', proj_bad)
 
     X = np.concatenate([np.array(proj_good), np.array(proj_bad)])[np.newaxis].T
-    y = len(proj_good) * [1] + len(proj_bad) * [0]
-    w = find_best_model(X, y, 0.1, 300)
+    y = len(proj_good) * [1] + len(proj_bad) * [-1]
+    w = find_best_model(X, y, 0.2, 3000, True)
     print("best model: ", w)
 
     y_pred = get_logit_predict(w, X)
