@@ -14,7 +14,7 @@ def get_discretized_values(lst):
     Discretize continuous parameters by choosing splits.
 
     Input:
-        lst: [value_of_continuous_column]
+        lst: [values_of_continuous_column]
 
     Return:
         splits: [value_of_splits]

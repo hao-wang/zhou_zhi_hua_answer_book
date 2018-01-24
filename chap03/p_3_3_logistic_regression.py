@@ -10,18 +10,10 @@ Experience: 西瓜数据集3.0_alpha
 import math
 import numpy as np
 import pandas as pd
+import sys
 
-def logit(x, thresh = 0.5):
-    """
-    Input:
-        x: float
-        thresh: float
-    Return:
-        logit: 0 or 1
-    """
-    #return 1 if (1/(1+math.exp(-x))>thresh) else 0
-    return (1/(1+math.exp(-x)))>thresh
-
+sys.path.append('../utils')
+from formulas import logit, get_logit_predict
 
 def loss_cross_entropy(X, y, w):
     """
@@ -64,7 +56,11 @@ def loss_grad_wrt_w(X, y, w):
     return loss_grad/N
 
 
-def find_best_model(X, y, w, learn_rate, time_steps):
+def find_best_model(X, y, learn_rate, time_steps):
+    const_col = X.sum(1)[...,None]
+    X = np.append(X, const_col, 1)
+    w = np.ones(X.shape[1])
+
     for _ in range(time_steps): 
         w = w - loss_grad_wrt_w(X, y, w)*learn_rate
         #print(w)
@@ -78,16 +74,13 @@ if __name__ == '__main__':
 
     # Add the bias column.
     X = df.loc[:, df.columns != y_col].values
-    const_col = X.sum(1)[...,None]
-    X = np.append(X, const_col, 1)
 
     # For using cross-entropy loss function, make the 1/0 binary value to be 1/-1
     y = df[y_col].values
     y[y==0] = -1
 
     # Find the best parameter using gradient descent
-    w = np.ones(X.shape[1])
-    w = find_best_model(X, y, w, 0.5, 500)
+    w = find_best_model(X, y, 0.5, 500)
 
     df['pred'] = [logit(f) for f in np.dot(X, w)]
     print(df)
