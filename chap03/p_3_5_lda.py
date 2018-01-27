@@ -10,7 +10,8 @@ import sys
 
 sys.path.append('../utils')
 from plot_data import plot_scatter, plot_line
-from p_3_3_logistic_regression import logit, find_best_model, get_logit_predict
+from formulas import logit, get_logit_predict
+from p_3_3_logistic_regression import find_best_model
 
 
 def get_project_vector(X1, X2):
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     w = find_best_model(X, y, 0.2, 3000, True)
     print("best model: ", w)
 
-    y_pred = get_logit_predict(w, X)
+    y_pred = get_logit_predict(X, w)
     df['pred'] = y_pred
     print(df)
 

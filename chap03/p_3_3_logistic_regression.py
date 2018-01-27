@@ -13,7 +13,7 @@ import pandas as pd
 import sys
 
 sys.path.append('../utils')
-from formulas import logit, get_logit_predict
+from formulas import logit
 
 def loss_cross_entropy(X, y, w):
     """

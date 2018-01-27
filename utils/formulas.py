@@ -14,9 +14,18 @@ def logit(x, thresh = 0.5):
     return (1/(1+math.exp(-x)))>thresh
 
 
-def get_logit_predict(w, X):
+def get_logit_predict(X, w):
+    """
+    Input:
+        w: List OR np.array(n)
+        X: np.array(m, n)
+
+    Return:
+        y_pred: np.array(m)
+    """
     const_col = X.sum(1)[...,None]
     X = np.append(X, const_col, 1)
+    X[:, -1] = 1
 
     return np.array([logit(y) for y in np.dot(X, w)])
 
