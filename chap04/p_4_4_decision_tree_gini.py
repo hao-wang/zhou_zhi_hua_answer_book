@@ -12,104 +12,12 @@ import numpy as np
 import os
 import pandas as pd
 from sklearn.cross_validation import train_test_split
+import sys
 
 sys.path.append('../utils')
+from constants import discrete_cols, continuous_cols_name, continuous_cols
 from data_preprocess import get_discretized_values
-
-def get_gini(df, y_col = '好瓜'):
-    """
-    Gini index is the probability of randomly picked
-    two elements to have different y_col value.
-
-    Input:
-        df: dataframe
-        y_col: String
-
-    Return:
-        Gini_index: float
-    """
-    cnt_dict = df[y_col].value_counts()
-    cnt_good = cnt_dict.get('是', 0)
-    cnt_bad = cnt_dict.get('否', 0)
-    p_good = cnt_good/(cnt_good + cnt_bad)
-    p_bad = cnt_bad/(cnt_good + cnt_bad)
-
-    return 1 - p_good*p_good - p_bad*p_bad
-
-
-def get_entropy(df, y_col='好瓜'):
-    """
-    Get information entropy for data.
-
-    Input:
-        df: dataframe
-        y_col: y value of dataframe
-
-    Return:
-        information_entropy: float
-    """
-    N = len(df)
-    dct = dict(df[y_col].value_counts())
-    n_positive = dct.get('是', 0)
-    n_negative = dct.get('否', 0)
-
-    if n_positive == 0:
-        #print("all good now.")
-        ent = -(n_negative/N)*np.log2(n_negative/N)
-    elif n_negative == 0:
-        #print("all bad now.")
-        ent = -(n_positive/N)*np.log2(n_positive/N)
-    else:
-        ent = -(n_negative/N)*np.log2(n_negative/N)-(n_positive/N)*np.log2(n_positive/N)
-    return ent
-
-
-def get_purity(purity_rule):
-    if purity_rule == 'gini':
-        return get_gini
-    else:
-        return get_entropy
-
-
-def get_splitted_purity(df, split_col, discrete=True, purity_rule='entropy'):
-    """
-    Get the total information entropy of splitted datasets.
-
-    Input:
-        df: dataframe
-        split_col(discrete): (column_name, -9999)
-        split_col(continuous): (column_name, splitting_value)
-
-    Return:
-        information_entropy: float
-    """
-    tot_purity = 0
-    N = len(df)
-    func = get_purity(purity_rule)
-
-    if discrete:
-        #IV = 0
-        split_col = split_col[0]
-        for v, g in df.groupby(split_col):
-            prty = func(g)
-            n = len(g)
-            tot_purity += (n/N) * prty
-            #IV += -(n/N) * np.log2(n/N)
-
-        return tot_purity #/IV
-
-    else:
-        split_col, split = col[0], col[1]
-
-        df_lt = df[df[split_col] < split]
-        df_gt = df[df[split_col] > split]
-        n_lt = len(df_lt)
-        n_gt = len(df_gt)
-        tot_purity = ((n_lt/N)*func(df_lt) +
-                   (n_gt/N)*func(df_gt))
-
-        return tot_purity
-
+from formulas import get_gini, get_entropy, get_purity, get_splitted_purity
 
 def get_best_divider(df, cols, purity_rule = 'gini'):
     """
@@ -125,15 +33,49 @@ def get_best_divider(df, cols, purity_rule = 'gini'):
     min_value = np.inf
     for col in cols:
         if col in continuous_cols:
-            prty = get_splitted_purity(df, col, False, purity_rule)
+            prty = get_splitted_purity(df, col, discrete=False,
+                    purity_rule=purity_rule)
         else:
-            prty = get_splitted_purity(df, col, True, purity_rule)
+            prty = get_splitted_purity(df, col, discrete=True, 
+                    purity_rule=purity_rule)
 
         if prty < min_value:
             min_value = prty
             best_divider = col
 
     return best_divider
+
+
+def get_lr_col(df):
+    """
+    Input:
+        df: pd.DataFrame
+
+    Return:
+        
+    """
+    X = df[continuous_cols_name].values
+    y = df['好瓜'].values[:]
+    y[y=='是'] = 1
+    y[y=='否'] = -1
+
+    w = find_best_model(X, y, 0.2, 2000, True)
+    y_predict = get_logit_predict(X, w)
+
+    str_col = (str(w[0])+'*'+continuous_cols_name[0] +
+            str(w[1])+'*'+continuous_cols_name[1] +
+            str(w[2]))
+    df[str_col] = y_predict
+    return (str_col, -99999), df
+
+
+def get_best_divider_with_lr(df, cols, purity_rule):
+    lr_col, df_tmp = get_lr_col(df)
+    best_divider = get_best_divider(df_tmp, df_tmp.columns, purity_rule)
+    if best_divider[0] != str_col:
+        return best_divider, df, cols
+    else:
+        return best_divider, df_tmp, cols+[lr_col]
 
 
 def is_parameters_uniform(df, cols):
@@ -187,7 +129,7 @@ def split_makes_worse(df, split_col, discrete=True, purity_rule='gini'):
 
 
 def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
-        prune='no', df_test=set()):
+        prune='no', df_test=set(), with_lr='False'):
     """
     The main function.
 
@@ -210,7 +152,10 @@ def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
         #print(df)
         return the_majority
     else:
-        bd = get_best_divider(water_melon, cols, purity_rule)
+        if with_lr == 'True':
+            bd, water_melon, cols = get_best_divider_with_lr(df, cols, purity_rule)
+        else:
+            bd = get_best_divider(df, cols, purity_rule)
 
         if prune=='pre' and split_makes_worse(df_test, bd, (bd not in continuous_cols), purity_rule):
             the_majority = get_majority(df)
@@ -299,9 +244,6 @@ if __name__ == '__main__':
     except Exception as e:
         continuous_cols = []
 
-    discrete_cols_name = ['色泽', '根蒂', '敲声', '纹理', '脐部', '触感']
-    discrete_cols = list(zip(discrete_cols_name, [-99999]*len(discrete_cols_name)))
-
     all_cols = discrete_cols  + continuous_cols
 
     tmp_cols = all_cols.copy()
@@ -317,11 +259,11 @@ if __name__ == '__main__':
 
     print(type(validate))
     for idx, s in validate.iterrows():
-        print(s)
+        #print(s)
         decision_1 = get_decision_from_tree(s, no_prune_tree)
         decision_2 = get_decision_from_tree(s, pre_prune_tree)
-        print(decision_1, decision_2)
-        print("="*50)
+        #print(decision_1, decision_2)
+        #print("="*50)
 
     #print("pre_prune="*50)
     #tmp_cols = all_cols.copy()
