@@ -17,7 +17,11 @@ import sys
 sys.path.append('../utils')
 from constants import discrete_cols, continuous_cols_name, continuous_cols
 from data_preprocess import get_discretized_values
-from formulas import get_gini, get_entropy, get_purity, get_splitted_purity
+from formulas import get_logit_predict
+from formulas import get_entropy, get_purity, get_splitted_purity
+
+sys.path.append('../chap03')
+from p_3_3_logistic_regression import find_best_model
 
 def get_best_divider(df, cols, purity_rule = 'gini'):
     """
@@ -46,36 +50,47 @@ def get_best_divider(df, cols, purity_rule = 'gini'):
     return best_divider
 
 
-def get_lr_col(df):
+def get_lr_col(df_ori, cols_ori):
     """
     Input:
         df: pd.DataFrame
+        cols: set{(col_name, value)}
+        lr_col: 
 
     Return:
         
     """
+    df = df_ori.copy()
+    cols = cols_ori.copy()
     X = df[continuous_cols_name].values
-    y = df['好瓜'].values[:]
+    df['y'] = df['好瓜']
+    y = df['y'].values
     y[y=='是'] = 1
     y[y=='否'] = -1
 
-    w = find_best_model(X, y, 0.2, 2000, True)
+    w = find_best_model(X, y, 0.2, 2000, False)
     y_predict = get_logit_predict(X, w)
 
-    str_col = (str(w[0])+'*'+continuous_cols_name[0] +
-            str(w[1])+'*'+continuous_cols_name[1] +
+    str_col = (str(w[0])+'*'+continuous_cols_name[0] + '+' + 
+            str(w[1])+'*'+continuous_cols_name[1] + '+' + 
             str(w[2]))
+    #print(str_col)
     df[str_col] = y_predict
-    return (str_col, -99999), df
+    lr_col = (str_col, -99999)
+    cols.add(lr_col)
+    return lr_col, cols, df
 
 
 def get_best_divider_with_lr(df, cols, purity_rule):
-    lr_col, df_tmp = get_lr_col(df)
-    best_divider = get_best_divider(df_tmp, df_tmp.columns, purity_rule)
-    if best_divider[0] != str_col:
+    lr_col, cols_tmp, df_tmp = get_lr_col(df, cols)
+    best_divider = get_best_divider(df_tmp,
+            set(cols_tmp) - set(continuous_cols),
+            purity_rule)
+    print(best_divider, type(best_divider))
+    if best_divider != lr_col:
         return best_divider, df, cols
     else:
-        return best_divider, df_tmp, cols+[lr_col]
+        return best_divider, df_tmp, cols_tmp
 
 
 def is_parameters_uniform(df, cols):
@@ -129,7 +144,7 @@ def split_makes_worse(df, split_col, discrete=True, purity_rule='gini'):
 
 
 def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
-        prune='no', df_test=set(), with_lr='False'):
+        prune='no', df_test=pd.DataFrame(), with_lr=False):
     """
     The main function.
 
@@ -152,8 +167,8 @@ def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
         #print(df)
         return the_majority
     else:
-        if with_lr == 'True':
-            bd, water_melon, cols = get_best_divider_with_lr(df, cols, purity_rule)
+        if with_lr == True:
+            bd, df, cols = get_best_divider_with_lr(df, cols, purity_rule)
         else:
             bd = get_best_divider(df, cols, purity_rule)
 
@@ -170,35 +185,47 @@ def construct_tree(df, cols, y_col = '好瓜', purity_rule = 'gini',
 
         if bd in continuous_cols:
             df_lt = df[df[bd[0]] < bd[1]]
-            df_lt_test = df_test[df_test[bd[0]] < bd[1]]
+            if len(df_test):
+                df_lt_test = df_test[df_test[bd[0]] < bd[1]]
+                df_gt_test = df_test[df_test[bd[0]] > bd[1]]
+            else:
+                df_lt_test = pd.DataFrame()
+                df_gt_test = pd.DataFrame()
+
             print("New branch: %s < %s" % (bd[0], bd[1]))
             my_tree[bd[0]]['<'+str(v)] = construct_tree(
                     df_lt, 
                     set(cols)-{bd}, 
                     purity_rule=purity_rule, 
                     prune=prune,
-                    df_test=df_lt_test)
+                    df_test=df_lt_test,
+                    with_lr=with_lr)
 
             df_gt = df[df[bd[0]] > bd[1]]
-            df_gt_test = df_test[df_test[bd[0]] > bd[1]]
             print("New branch: %s > %s" % (bd[0], bd[1]))
             my_tree[bd[0]]['>'+str(v)] = construct_tree(
                     df_gt, 
                     set(cols)-{bd},
                     purity_rule=purity_rule,
                     prune=prune,
-                    df_test=df_gt_test)
+                    df_test=df_gt_test,
+                    with_lr=with_lr)
 
         else:
             for v, g in df.groupby(bd[0]):
                 print("New branch: %s=%s" % (bd[0], v))
-                g_test = df_test[df_test[bd[0]]==v]
+                if len(df_test):
+                    g_test = df_test[df_test[bd[0]]==v]
+                else:
+                    g_test = df_test
+
                 my_tree[bd[0]][v] = construct_tree(
                         g, 
                         set(cols)-{bd}, 
                         purity_rule=purity_rule, 
                         prune=prune,
-                        df_test=g_test)
+                        df_test=g_test,
+                        with_lr=with_lr)
 
             the_majority = get_majority(df)
             my_tree[bd[0]]['default'] = the_majority
@@ -214,6 +241,7 @@ def get_decision_from_tree(data, tree):
     Input: 
         data: pd.Series
         tree: dict (decision tree)
+
     Return:
         decision: String 
     """
